@@ -3,11 +3,12 @@
     <h1>Game</h1>
     <a href="#" @click="startGame" v-if="!isStarted">Start</a>
     <template v-else>
-      <a href="#" @click="restartGame" >Restart</a>
-      <a href="#" @click="clear" >Stop</a>
+      <a href="#" @click="restartGame">Restart</a>
+      <br />
+      <a href="#" @click="clear">Stop</a>
     </template>
-    
-    <div style="display: flex;">
+
+    <div style="display: flex;" v-if="isStarted">
       <div style="flex: 33%;">
         <div style="border: 1px dashed blue;">
           <p>Incomes Total: {{ incomesTotal }}</p>
@@ -48,82 +49,78 @@
       </div>
       <div style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;">
         <template v-if="currentFlow">
+          <div>
+            <span>{{ cashflowTotal }}</span>
+            <span>{{ cashTotal }}</span>
+            <span>{{ creditTotal }}</span>
+          </div>
           <h4>{{ currentFlow.flowType }}</h4>
-          <div
-            v-if="currentFlow.flowType === FlowType.BIRTH_CHILD"
-            style="display: flex; flex-direction: column; flex-grow: 1;"
-          >
-            <div style="flex-grow: 1;">
-              Рождение ребенка
-              Количество: {{ currentFlow.count }}
-              Расход: {{ currentFlow.value }}
-            </div>
-            <div>
-              <button @click="next">Ok</button>
-            </div>
-          </div>
-          <div
-            v-if="currentFlow.flowType === FlowType.RECEIVING_SALARY"
-            style="display: flex; flex-direction: column; flex-grow: 1;"
-          >
-            <div style="flex-grow: 1;">
-              Получение зарплаты
-              Зарплата: {{ incomesTotal - expensesTotal }}
-              Премия: {{ currentFlow.premiumValue }}
-              --------------------------
-              Итого: {{ amount(currentFlow.premiumValue) + incomesTotal - expensesTotal }}
-            </div>
-            <div>
-              <button @click="next">Ok</button>
-            </div>
-          </div>
+          <component
+            ref="dynamicComponent"
+            :is="actionComponent"
+            :details="actionDetails"
+            @submit="onActionSubmit"
+            @cancel="onActionCancel"
+          ></component>
         </template>
       </div>
       <div style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;">test</div>
     </div>
 
-    <button @click="initStartFlow">Add</button>
+    <!-- <button @click="initStartFlow">Add</button>
     <button @click="next">next</button>
-    <button @click="clear">Clear</button>
+    <button @click="clear">Clear</button>-->
   </div>
 </template>
 <script>
+import BirthChildPanel from "./panel/BirthChildPanel";
+import ReceivingSalary from "./panel/ReceivingSalary";
+import StockFundMetalIndustry from "./panel/StockFundMetalIndustry";
 export default {
   name: "Game",
+  components: {
+    BirthChildPanel,
+    ReceivingSalary,
+    StockFundMetalIndustry
+  },
   data() {
     return {
       test: "lorem ipsum",
+      actionComponent: null,
       currentFlow: null,
       flowList: [
         // { flowType: "JOB", value: 1000 },
         { flowType: "BIRTH_CHILD", value: 700, count: 1 },
         { flowType: "RECEIVING_SALARY", premiumValue: 100 },
         { flowType: "RECEIVING_SALARY", premiumValue: 900 },
-        { flowType: "RECEIVING_SALARY", premiumValue: 1500 }
+        { flowType: "RECEIVING_SALARY", premiumValue: 1500 },
+        {
+          flowType: "STOCK_FUND_METAL_INDUSTRY",
+          value: 35,
+          maxCount: 1000,
+          companyName: "акции «Связьком»"
+        }
       ]
     };
   },
   methods: {
+    onActionSubmit(value) {
+      this.next(value);
+    },
+    onActionCancel() {},
     initStartFlow() {
       let { FlowType } = this;
       this.addFlow({ flowType: FlowType.JOB, value: 4500 });
       this.addFlow({ flowType: FlowType.GENERAL_EXPENSES, value: 2500 });
     },
-    generateNextFlow() {
-      let items = this.flowList;
-      this.currentFlow = items[Math.floor(Math.random() * items.length)];
-    },
-    cancel() {
-      this.generateNextFlow();
-    },
-    next() {
-      if (this.currentFlow) this.addFlow(this.currentFlow);
-      this.generateNextFlow();
+    next(value) {
+      if (this.currentFlow) this.addFlow(this.currentFlow, value);
+      this.generateNextFlow(value);
     },
     clear() {
       this.$store.commit("clearFlows");
     },
-    addFlow(flow) {
+    addFlow(flow, value) {
       let { flowType } = flow;
       let { FlowType } = this;
 
@@ -205,6 +202,30 @@ export default {
             }
           }
           break;
+        case FlowType.STOCK_FUND_METAL_INDUSTRY:
+          {
+            console.log(value);
+          }
+          break;
+      }
+    },
+    generateNextFlow(value) {
+      let { FlowType } = this;
+      let items = this.flowList;
+      this.currentFlow = items[Math.floor(Math.random() * items.length)];
+
+      switch (this.currentFlow.flowType) {
+        case FlowType.BIRTH_CHILD:
+          this.actionComponent = "BirthChildPanel";
+          break;
+        case FlowType.RECEIVING_SALARY:
+          this.actionComponent = "ReceivingSalary";
+          break;
+        case FlowType.STOCK_FUND_METAL_INDUSTRY:
+          this.actionComponent = "StockFundMetalIndustry";
+          break;
+        default:
+          this.actionComponent = null;
       }
     },
     amount(value) {
@@ -224,12 +245,21 @@ export default {
 
       this.generateNextFlow();
     },
-    restartGame(){
-      this.clear()
-      this.startGame()
+    restartGame() {
+      this.clear();
+      this.startGame();
     }
   },
   computed: {
+    cashflowTotal() {
+      return this.incomesTotal - this.expensesTotal;
+    },
+    cashTotal() {
+      return this.assetsTotal - this.liabilitiesTotal;
+    },
+    creditTotal() {
+      return 0;
+    },
     incomesTotal() {
       let { incomes } = this.state.report;
       return this.totalAmount(incomes, "value");
@@ -249,10 +279,34 @@ export default {
     isStarted() {
       let { incomes } = this.state.report;
       return incomes.length > 0;
+    },
+    actionDetails() {
+      let {
+        currentFlow,
+        incomesTotal,
+        expensesTotal,
+        assetsTotal,
+        liabilitiesTotal
+      } = this;
+      return {
+        currentFlow,
+        incomesTotal,
+        expensesTotal,
+        assetsTotal,
+        liabilitiesTotal
+      };
     }
   },
   mounted() {
-    this.startGame();
+    //this.startGame();
+  },
+  watch: {
+    cashTotal(newVal) {
+      if (newVal < 0) {
+        alert("You are a Bankrot!");
+        this.restartGame();
+      }
+    }
   }
 };
 </script>

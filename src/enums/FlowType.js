@@ -3,7 +3,8 @@ const FlowType = Object.freeze({
     GENERAL_EXPENSES: "GENERAL_EXPENSES",
     BIRTH_CHILD: "BIRTH_CHILD",
     RECEIVING_SALARY: "RECEIVING_SALARY",
-    CASH: "CASH"
+    CASH: "CASH",
+    STOCK_FUND_METAL_INDUSTRY: "STOCK_FUND_METAL_INDUSTRY"
 })
   
 export default FlowType

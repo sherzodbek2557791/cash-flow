@@ -13,9 +13,6 @@ const vuexPersist = new VuexPersist({
 export default new Vuex.Store({
   state: {
     report:{
-      cashflow: 1000,
-      cash: 1000,
-      credit: 1000,
       incomes: [],
       expenses: [],
       assets: [],
@@ -50,9 +47,6 @@ export default new Vuex.Store({
     },
     clearFlows(state){
       state.report = {
-        cashflow: 0,
-        cash: 0,
-        credit: 0,
         incomes: [],
         expenses: [],
         assets: [],

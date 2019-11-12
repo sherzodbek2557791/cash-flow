@@ -29,7 +29,7 @@
           </ul>
         </div>
         <div style="border: 1px dashed blue;">
-          <p>Essets Total: {{ assetsTotal }}</p>
+          <p>Assets Total: {{ assetsTotal }}</p>
           <ul>
             <li
               v-for="(item, index) of state.report.assets"
@@ -50,8 +50,8 @@
       <div style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;">
         <template v-if="currentFlow">
           <div>
-            <span>{{ cashflowTotal }}</span>
-            <span>{{ cashTotal }}</span>
+            <span>{{ cashflowTotal }}</span>,
+            <span>{{ cashTotal }}</span>,
             <span>{{ creditTotal }}</span>
           </div>
           <h4>{{ currentFlow.flowType }}</h4>
@@ -105,9 +105,12 @@ export default {
   },
   methods: {
     onActionSubmit(value) {
-      this.next(value);
+      if (this.currentFlow) this.addFlow(this.currentFlow, value);
+      this.generateNextFlow();
     },
-    onActionCancel() {},
+    onActionCancel() {
+      this.generateNextFlow();
+    },
     initStartFlow() {
       let { FlowType } = this;
       this.addFlow({ flowType: FlowType.JOB, value: 4500 });
@@ -115,7 +118,7 @@ export default {
     },
     next(value) {
       if (this.currentFlow) this.addFlow(this.currentFlow, value);
-      this.generateNextFlow(value);
+      this.generateNextFlow();
     },
     clear() {
       this.$store.commit("clearFlows");
@@ -204,12 +207,58 @@ export default {
           break;
         case FlowType.STOCK_FUND_METAL_INDUSTRY:
           {
-            console.log(value);
+            let { type, buyCount, cellCount } = value;
+            let { value: currentValue, companyName } = flow;
+            let { assets } = this.state.report;
+            let assetIndex = assets.findIndex(
+              x =>
+                x.flowType === FlowType.STOCK_FUND_METAL_INDUSTRY &&
+                x.companyName === companyName
+            );
+            let stockCount =
+              type === "buy" ? buyCount : type === "cell" ? -cellCount : 0;
+            let cashIndex = assets.findIndex(x => x.flowType === FlowType.CASH);
+            if (type === "buy" && cashIndex < 0) {
+              alert("some error");
+              break;
+            }
+            if (assetIndex > -1) {
+              let { value: eValue, count: eCount } = assets[assetIndex];
+              let totalValue = eValue + currentValue * stockCount;
+              let totalCount = eCount + stockCount;
+              this.$store.commit("setAsset", {
+                index: assetIndex,
+                flow: {
+                  flowType,
+                  value: totalValue,
+                  count: totalCount,
+                  currentValue,
+                  companyName
+                }
+              });
+            } else {
+              this.$store.commit("addAsset", {
+                flowType,
+                value: currentValue * stockCount,
+                count: buyCount,
+                currentValue,
+                companyName
+              });
+            }
+
+            let cash = assets[cashIndex];
+            this.$store.commit("setAsset", {
+              index: cashIndex,
+              flow: {
+                flowType: FlowType.CASH,
+                value: cash.value - currentValue * stockCount
+              }
+            });
           }
           break;
       }
     },
-    generateNextFlow(value) {
+    generateNextFlow() {
       let { FlowType } = this;
       let items = this.flowList;
       this.currentFlow = items[Math.floor(Math.random() * items.length)];
@@ -255,7 +304,13 @@ export default {
       return this.incomesTotal - this.expensesTotal;
     },
     cashTotal() {
-      return this.assetsTotal - this.liabilitiesTotal;
+      let { FlowType } = this;
+      let { assets } = this.state.report,
+        total = 0;
+      return assets.reduce(
+        (value, x) => value + (x.flowType === FlowType.CASH ? x.value : 0),
+        0
+      );
     },
     creditTotal() {
       return 0;

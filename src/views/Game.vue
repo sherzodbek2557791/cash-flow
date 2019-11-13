@@ -1,6 +1,6 @@
 <template>
   <div class="about">
-    <h1>Game</h1>
+    <h1> {{$t('game.title') }} </h1>
     <a href="#" @click="startGame" v-if="!isStarted">Start</a>
     <template v-else>
       <a href="#" @click="restartGame">Restart</a>

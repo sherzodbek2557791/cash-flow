@@ -1,7 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 import VuexPersist from 'vuex-persist'
-import { FlowType } from '../enums'
 
 Vue.use(Vuex)
 
@@ -59,5 +58,3 @@ export default new Vuex.Store({
   modules: {},
   plugins: [vuexPersist.plugin]
 })
-
-Vue.mixin({ data() { return { state: this.$store.state } } })

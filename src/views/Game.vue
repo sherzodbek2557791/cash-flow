@@ -1,6 +1,6 @@
 <template>
   <div class="about">
-    <h1> {{$t('game.title') }} </h1>
+    <h1>{{ $t("game.title") }}</h1>
     <a href="#" @click="startGame" v-if="!isStarted">Start</a>
     <template v-else>
       <a href="#" @click="restartGame">Restart</a>
@@ -16,7 +16,9 @@
             <li
               v-for="(item, index) of state.report.incomes"
               :key="`incomes-${index}`"
-            >{{ JSON.stringify(item) }}</li>
+            >
+              {{ JSON.stringify(item) }}
+            </li>
           </ul>
         </div>
         <div style="border: 1px dashed blue;">
@@ -25,7 +27,9 @@
             <li
               v-for="(item, index) of state.report.expenses"
               :key="`expenses-${index}`"
-            >{{ JSON.stringify(item) }}</li>
+            >
+              {{ JSON.stringify(item) }}
+            </li>
           </ul>
         </div>
         <div style="border: 1px dashed blue;">
@@ -34,7 +38,9 @@
             <li
               v-for="(item, index) of state.report.assets"
               :key="`assets-${index}`"
-            >{{ JSON.stringify(item) }}</li>
+            >
+              {{ JSON.stringify(item) }}
+            </li>
           </ul>
         </div>
         <div style="border: 1px dashed blue;">
@@ -43,15 +49,20 @@
             <li
               v-for="(item, index) of state.report.liabilities"
               :key="`liabilities-${index}`"
-            >{{ JSON.stringify(item) }}</li>
+            >
+              {{ JSON.stringify(item) }}
+            </li>
           </ul>
         </div>
       </div>
-      <div style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;">
+      <div
+        style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;"
+      >
         <template v-if="currentFlow">
           <div>
-            <span>{{ cashflowTotal }}</span>,
-            <span>{{ cashTotal }}</span>,
+            <span>{{ cashFlowTotal }}</span
+            >, <span>{{ cashTotal }}</span
+            >,
             <span>{{ creditTotal }}</span>
           </div>
           <h4>{{ currentFlow.flowType }}</h4>
@@ -64,7 +75,11 @@
           ></component>
         </template>
       </div>
-      <div style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;">test</div>
+      <div
+        style="flex: 33%; border: 1px dashed green; display: flex; flex-direction: column;"
+      >
+        test
+      </div>
     </div>
 
     <!-- <button @click="initStartFlow">Add</button>
@@ -76,24 +91,39 @@
 import BirthChildPanel from "./panel/BirthChildPanel";
 import ReceivingSalary from "./panel/ReceivingSalary";
 import StockFundMetalIndustry from "./panel/StockFundMetalIndustry";
+import SaleBusinessPanel from "./panel/SaleBusinessPanel";
+import SaleHousePanel from "./panel/SaleHousePanel";
 export default {
   name: "Game",
   components: {
     BirthChildPanel,
     ReceivingSalary,
-    StockFundMetalIndustry
+    StockFundMetalIndustry,
+    SaleBusinessPanel,
+    SaleHousePanel
   },
   data() {
     return {
       test: "lorem ipsum",
       actionComponent: null,
       currentFlow: null,
+      categories: {
+        salary: ["JOB", "RECEIVING_SALARY"],
+        life: [
+          "BIRTH_CHILD",
+          "STOCK_FUND_METAL_INDUSTRY",
+          "SALE_BUSINESS",
+          "SALE_HOUSE"
+        ]
+      },
       flowList: [
         // { flowType: "JOB", value: 1000 },
         { flowType: "BIRTH_CHILD", value: 700, count: 1 },
         { flowType: "RECEIVING_SALARY", premiumValue: 100 },
         { flowType: "RECEIVING_SALARY", premiumValue: 900 },
         { flowType: "RECEIVING_SALARY", premiumValue: 1500 },
+        { flowType: "SALE_BUSINESS", value: 80000, type: "buy" },
+        { flowType: "SALE_HOUSE", value: 16000, type: "cell" },
         {
           flowType: "STOCK_FUND_METAL_INDUSTRY",
           value: 35,
@@ -259,9 +289,31 @@ export default {
       }
     },
     generateNextFlow() {
+      let { step, lastFlowType, lastStepFlows } = this.state.report;
       let { FlowType } = this;
-      let items = this.flowList;
+      let items =
+        step % 4 === 0
+          ? this.flowList.filter(x =>
+              this.categories.salary.includes(x.flowType)
+            )
+          : this.flowList.filter(x =>
+              this.categories.life.includes(x.flowType)
+            );
+
+      if (step % 4 === 0) {
+        this.$store.commit("resetLastStepFlows");
+      }
+
       this.currentFlow = items[Math.floor(Math.random() * items.length)];
+      let count = 0;
+      while (
+        (this.currentFlow.flowType === lastFlowType ||
+          lastStepFlows.includes(this.currentFlow.flowType)) &&
+        count < 100
+      ) {
+        this.currentFlow = items[Math.floor(Math.random() * items.length)];
+        count++;
+      }
 
       switch (this.currentFlow.flowType) {
         case FlowType.BIRTH_CHILD:
@@ -273,9 +325,17 @@ export default {
         case FlowType.STOCK_FUND_METAL_INDUSTRY:
           this.actionComponent = "StockFundMetalIndustry";
           break;
+        case FlowType.SALE_BUSINESS:
+          this.actionComponent = "SaleBusinessPanel";
+          break;
+        case FlowType.SALE_HOUSE:
+          this.actionComponent = "SaleHousePanel";
+          break;
         default:
           this.actionComponent = null;
       }
+      this.$store.commit("incStep");
+      this.$store.commit("setLastFlow", this.currentFlow.flowType);
     },
     amount(value) {
       return value && typeof value === "number" ? value : 0;
@@ -300,13 +360,12 @@ export default {
     }
   },
   computed: {
-    cashflowTotal() {
+    cashFlowTotal() {
       return this.incomesTotal - this.expensesTotal;
     },
     cashTotal() {
       let { FlowType } = this;
-      let { assets } = this.state.report,
-        total = 0;
+      let { assets } = this.state.report;
       return assets.reduce(
         (value, x) => value + (x.flowType === FlowType.CASH ? x.value : 0),
         0
